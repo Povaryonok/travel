@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Главная</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <button id="all-posts">Все посты</button>
+        <button id="my-posts">Мои посты</button>
+        <button id="logout">Выйти</button>
+    </header>
+    <div id="posts-container"></div>
+    <button class="add-post-button" id="create-post">+</button>
+
+    <div id="post-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <form id="post-form" action="/create-post" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="author" id="author">
+                <input type="text" name="title" placeholder="Заголовок" required>
+                <textarea name="content" placeholder="Содержание" required></textarea>
+                <div class="cost-field">
+                    <input type="number" name="cost" placeholder="Стоимость путешествия" required>
+                    <select name="currency" required>
+                        <option value="RUB">RUB</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                    </select>
+                </div>
+                
+                <div class="rating">
+                    <label>Удобство:</label>
+                    <div class="stars">
+                        <select name="convenience">
+                            <option value="1">★☆☆☆☆</option>
+                            <option value="2">★★☆☆☆</option>
+                            <option value="3">★★★☆☆</option>
+                            <option value="4">★★★★☆</option>
+                            <option value="5">★★★★★</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rating">
+                    <label>Безопасность:</label>
+                    <div class="stars">
+                        <select name="safety">
+                            <option value="1">★☆☆☆☆</option>
+                            <option value="2">★★☆☆☆</option>
+                            <option value="3">★★★☆☆</option>
+                            <option value="4">★★★★☆</option>
+                            <option value="5">★★★★★</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rating">
+                    <label>Населённость:</label>
+                    <div class="stars">
+                        <select name="population">
+                            <option value="1">★☆☆☆☆</option>
+                            <option value="2">★★☆☆☆</option>
+                            <option value="3">★★★☆☆</option>
+                            <option value="4">★★★★☆</option>
+                            <option value="5">★★★★★</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rating">
+                    <label>Растительность:</label>
+                    <div class="stars">
+                        <select name="vegetation">
+                            <option value="1">★☆☆☆☆</option>
+                            <option value="2">★★☆☆☆</option>
+                            <option value="3">★★★☆☆</option>
+                            <option value="4">★★★★☆</option>
+                            <option value="5">★★★★★</option>
+                        </select>
+                    </div>
+                </div>
+
+                <input type="file" name="images" multiple>
+                <button type="submit">Опубликовать</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const username = urlParams.get('username');
+        document.getElementById('author').value = username;
+
+        document.getElementById('my-posts').addEventListener('click', function() {
+            loadPosts(`/my-posts?username=${username}`);
+        });
+
+        document.getElementById('all-posts').addEventListener('click', function() {
+            loadPosts('/posts');
+        });
+
+        document.getElementById('logout').addEventListener('click', function() {
+            window.location.href = '/';
+        });
+
+        document.getElementById('create-post').addEventListener('click', function() {
+            document.getElementById('post-modal').style.display = 'block';
+        });
+
+        document.querySelector('.close').addEventListener('click', function() {
+            document.getElementById('post-modal').style.display = 'none';
+        });
+
+        document.getElementById('post-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+
+            fetch('/create-post', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(result => {
+                alert(result);
+                document.getElementById('post-modal').style.display = 'none';
+                loadPosts('/posts');
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        function loadPosts(url) {
+            fetch(url)
+                .then(response => response.json())
+                .then(posts => {
+                    const container = document.getElementById('posts-container');
+                    container.innerHTML = '';
+                    posts.forEach(post => {
+                        const postElement = document.createElement('div');
+                        postElement.className = 'post';
+                        postElement.innerHTML = `
+                            <h3>${post.title}</h3>
+                            <p>${post.content}</p>
+                            <p><strong>Автор:</strong> ${post.author}</p>
+                            <p><strong>Стоимость путешествия:</strong> ${post.cost} ${post.currency}</p>
+                            <p><strong>Удобство:</strong> ${getStars(post.convenience)}</p>
+                            <p><strong>Безопасность:</strong> ${getStars(post.safety)}</p>
+                            <p><strong>Населённость:</strong> ${getStars(post.population)}</p>
+                            <p><strong>Растительность:</strong> ${getStars(post.vegetation)}</p>
+                            ${post.images.length ? `
+                            <div class="slider">
+                                ${post.images.map((image, index) => `<img src="${image}" class="${index === 0 ? 'active' : ''}">`).join('')}
+                                <a class="prev">&#10094;</a>
+                                <a class="next">&#10095;</a>
+                            </div>` : ''}
+                        `;
+                        container.appendChild(postElement);
+
+                        if (post.images.length) {
+                            const slider = postElement.querySelector('.slider');
+                            const images = slider.querySelectorAll('img');
+                            let currentIndex = 0;
+
+                            slider.querySelector('.prev').addEventListener('click', () => {
+                                images[currentIndex].classList.remove('active');
+                                currentIndex = (currentIndex - 1 + images.length) % images.length;
+                                images[currentIndex].classList.add('active');
+                            });
+
+                            slider.querySelector('.next').addEventListener('click', () => {
+                                images[currentIndex].classList.remove('active');
+                                currentIndex = (currentIndex + 1) % images.length;
+                                images[currentIndex].classList.add('active');
+                            });
+                        }
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function getStars(rating) {
+            return '★'.repeat(rating) + '☆'.repeat(5 - rating);
+        }
+
+        // Load all posts by default
+        loadPosts('/posts');
+    </script>
+</body>
+</html>
